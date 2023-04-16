@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+</head>
+<body>
+  <div id="certification">
+    <p>パスワードを入力してください。</p>
+    <input type="password" id="input_password">
+    <button onclick="data_post()">決定</button>
+  </div>
+  <div id="chat" style="display: none;">
+    <div id="chat_messages"></div>
+    <input type="text" id="chat_send_text">
+    <button onclick="chat_send()">送信</button>
+  </div>
+  <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+  <script>
+    let latest = new Date().getTime();
+    let chat = [];
+    let id_rule = `${location.href}-1.0`
+    
+    function data_post() {
+      axios.post("./",{
+        type: "signup",
+        password: input_password.value
+      }).then(res=>{
+        if(res.data.type === "success") {
+          // パスワードが一致した場合にchatの要素を表示し、certificationの要素を非表示にする
+          document.getElementById("chat").style.display = "block";
+          document.getElementById("certification").style.display = "none";
+          
+          localStorage.setItem(id_rule, res.data.token);
+          localStorage.setItem(id_rule+"_password", input_password.value);
+          localStorage.setItem(id_rule+"_uuid", res.data.uuid);
+          localStorage.setItem(id_rule+"_name", "猫ちゃん")
+          
+          setInterval(update_chat_messages, 1000);
+        }
+      })
+    };
+    
+    function update_chat_messages() {
+      axios.post("./",{
+        type: "chat_update",
+        token: localStorage.getItem(id_rule),
+        time: latest
+      }).then(res=>{
+        if(latest !== res.data.latest) {
+          for(let i=0;i<res.data.chat.length;i++){
+            document.getElementById("chat_messages").innerHTML += `
+            <p>
+            ${res.data.chat[i].name}#
+            ${res.data.chat[i].id}<br>
+            ${res.data.chat[i].text}
+            </p>
+            `;
+          }
+          latest = res.data.latest
+        }
+      })
+    };
+    
+    function chat_send() {
+      axios.post("./",{
+        type: "message_send",
+        token: localStorage.getItem(id_rule),
+        name: localStorage.getItem(id_rule+"_name"),
+        uuid: localStorage.getItem(id_rule+"_uuid"),
+        message: {
+          text: chat_send_text.value,
+          timestamp: new Date().getTime()
+        }
+      })
+    }
+    
+    if(localStorage.getItem(id_rule)) {
+      axios.post("./",{
+        type: "login",
+        password: localStorage.getItem(id_rule+"_password")
+      }).then(res=>{
+        if(res.data.type == "success") {
+          document.getElementById("chat").style.display = "block";
+          document.getElementById("certification").style.display = "none";
+          localStorage.setItem(id_rule, res.data.token);
+          setInterval(update_chat_messages, 1000);
+        }
+      })
+    }
+  </script>
+</body>
+</html>
